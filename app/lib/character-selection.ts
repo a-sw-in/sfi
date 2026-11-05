@@ -17,17 +17,26 @@ export function getCachedCharacter(): CachedCharacter {
   if (cached) {
     try {
       const character = JSON.parse(cached) as CachedCharacter;
-      if (character.slug && character.gameAsset && character.portraitAsset) {
-        return character;
+      if (character.slug && data.characters.some((item) => item.slug === character.slug)) {
+        return createCharacter(character.slug);
       }
     } catch {
-      // Remove invalid cached data and fall back to the default character.
-      window.localStorage.removeItem(cacheKey);
+      // Replace invalid cached data with the first character.
     }
+    window.localStorage.removeItem(cacheKey);
   }
 
-  const legacySlug = window.localStorage.getItem("kyc-selected-character") ?? "decoder";
-  return createCharacter(legacySlug);
+  const legacySlug = window.localStorage.getItem("kyc-selected-character");
+  if (legacySlug && data.characters.some((item) => item.slug === legacySlug)) {
+    const character = createCharacter(legacySlug);
+    window.localStorage.setItem(cacheKey, JSON.stringify(character));
+    return character;
+  }
+
+  const defaultCharacter = createCharacter(data.characters[0].slug);
+  window.localStorage.setItem(cacheKey, JSON.stringify(defaultCharacter));
+  window.localStorage.setItem("kyc-selected-character", defaultCharacter.slug);
+  return defaultCharacter;
 }
 
 export function cacheCharacter(slug: string): CachedCharacter {

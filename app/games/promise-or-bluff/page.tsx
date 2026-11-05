@@ -5,13 +5,17 @@ import Link from "next/link";
 import { type TouchEvent, useCallback, useEffect, useRef, useState } from "react";
 import data from "../../data.json";
 import { getCachedCharacter } from "../../lib/character-selection";
+import { getCachedPlayerPhone } from "../../lib/player-session";
+import { addPlayerPoints } from "../../lib/player-points";
 
 export default function PromiseOrBluff() {
-  const [selectedCharacter] = useState(() => getCachedCharacter().slug);
-  const character = data.characters.find((item) => item.slug === selectedCharacter) ?? data.characters[0];
+  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
+  const playerPhone = getCachedPlayerPhone();
+  const character = selectedCharacter ? data.characters.find((item) => item.slug === selectedCharacter) : undefined;
   const [isJumping, setIsJumping] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [showGameOverScreen, setShowGameOverScreen] = useState(false);
   const [obstacleX, setObstacleX] = useState(620);
   const [playerY, setPlayerY] = useState(0);
   const [score, setScore] = useState(0);
@@ -20,9 +24,18 @@ export default function PromiseOrBluff() {
   const jumpVelocity = useRef(0);
   const obstaclePosition = useRef(620);
   const scoreRef = useRef(0);
+  const pointsAwardedRef = useRef(false);
   const runSpeed = useRef(7);
   const stageRef = useRef<HTMLDivElement>(null);
   const audioContext = useRef<AudioContext | null>(null);
+  const gameOverTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSelectedCharacter(getCachedCharacter().slug);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const playSound = useCallback((frequency: number, duration: number, type: OscillatorType = "square") => {
     const AudioContextClass = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -49,6 +62,8 @@ export default function PromiseOrBluff() {
       obstaclePosition.current = startX;
       setObstacleX(startX);
       playSound(330, 0.12);
+      jumpY.current = 0;
+      jumpVelocity.current = 0;
     }
     if (isJumping) return;
     setIsJumping(true);
@@ -59,10 +74,16 @@ export default function PromiseOrBluff() {
   }, [gameStarted, gameOver, isJumping, playSound]);
 
   const restartGame = useCallback(() => {
+    if (gameOverTimer.current !== null) {
+      window.clearTimeout(gameOverTimer.current);
+      gameOverTimer.current = null;
+    }
     setGameOver(false);
+    setShowGameOverScreen(false);
     setGameStarted(false);
     setScore(0);
     scoreRef.current = 0;
+    pointsAwardedRef.current = false;
     runSpeed.current = 7;
     jumpY.current = 0;
     jumpVelocity.current = 0;
@@ -72,6 +93,18 @@ export default function PromiseOrBluff() {
     setObstacleX(resetX);
     setObstacleType("cactus");
   }, []);
+
+  const saveGamePoints = useCallback(async () => {
+    if (!playerPhone || pointsAwardedRef.current) return;
+
+    pointsAwardedRef.current = true;
+    try {
+      await addPlayerPoints(playerPhone, scoreRef.current);
+    } catch (error) {
+      pointsAwardedRef.current = false;
+      console.error("Unable to save player points", error);
+    }
+  }, [playerPhone]);
 
   const handleGameTouch = (event: TouchEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
@@ -112,25 +145,30 @@ export default function PromiseOrBluff() {
         obstaclePosition.current = nextX;
       }
       setObstacleX(obstaclePosition.current);
-      const playerLeft = stageWidth * 0.18 + 10;
-      const playerRight = stageWidth * 0.18 + 78;
-      const obstacleLeft = obstaclePosition.current + 8;
-      const obstacleRight = obstaclePosition.current + 50;
-      const playerBottom = 34 + jumpY.current + 6;
-      const playerTop = playerBottom + 43;
-      const obstacleBottom = 37;
-      const obstacleTop = obstacleBottom + 46;
+      const playerLeft = stageWidth * 0.18 + 4;
+      const playerRight = stageWidth * 0.18 + 57;
+      const obstacleLeft = obstaclePosition.current + 4;
+      const obstacleRight = obstaclePosition.current + 54;
+      const playerBottom = 34 + jumpY.current + 4;
+      const playerTop = playerBottom + 48;
+      const obstacleBottom = 31 + 4;
+      const obstacleTop = obstacleBottom + 54;
       if (playerRight > obstacleLeft && playerLeft < obstacleRight && playerTop > obstacleBottom && playerBottom < obstacleTop) {
         playSound(110, 0.35, "sawtooth");
         setGameOver(true);
         setGameStarted(false);
+        gameOverTimer.current = window.setTimeout(() => {
+          setShowGameOverScreen(true);
+          gameOverTimer.current = null;
+        }, 1000);
+        void saveGamePoints();
         return;
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [gameStarted, gameOver, playSound]);
+  }, [gameStarted, gameOver, playSound, saveGamePoints]);
 
   return (
     <main className="is-playing">
@@ -139,18 +177,19 @@ export default function PromiseOrBluff() {
         <h1>Know Your Candidate</h1>
         <span className="header-space" />
       </header>
-      <section className="dino-game" aria-label="Promise or Bluff game">
-        <div className="game-screen-header"><span /><strong>Promise or Bluff?</strong><span className="game-score">{String(score).padStart(5, "0")}</span></div>
+      <section className="dino-game" aria-label="Promise or Bluff game" data-player-phone={playerPhone ?? undefined}>
+        <div className="game-screen-header"><span /><strong>Run Candidate Run</strong><span className="game-score">{String(score).padStart(5, "0")}</span></div>
         <div className={`dino-stage ${gameStarted && !gameOver ? "running" : ""}`} ref={stageRef} onTouchStart={handleGameTouch}>
           <div className="game-cloud cloud-one" /><div className="game-cloud cloud-two" />
-          <Image key={character.slug} className={`runner-character character-${character.slug} ${isJumping ? "jumping" : ""}`} src={`${character.gameAsset}?v=${character.slug}`} alt={`${character.name} character`} width={138} height={86} priority unoptimized style={{ bottom: `${34 + playerY}px` }} />
+          {character && <Image key={character.slug} className={`runner-character character-${character.slug} ${isJumping ? "jumping" : ""}`} src={`${character.gameAsset}?v=${character.slug}`} alt={`${character.name} character`} width={138} height={86} priority unoptimized style={{ bottom: `${34 + playerY}px` }} />}
           <Image className={`obstacle obstacle-${obstacleType}`} src={data.gameAssets[obstacleType]} alt="" width={58} height={58} style={{ left: `${obstacleX}px` }} />
           <div className="ground-line" />
-          {gameOver && <div className="game-over-screen"><Image className="game-over-portrait" src={character.portraitAsset} alt="" width={180} height={180} unoptimized /><div className="game-over-content"><span>GAME OVER</span><strong>{String(score).padStart(5, "0")}</strong><small>Final score</small></div></div>}
+          {showGameOverScreen && character && <div className="game-over-screen"><div className="game-over-character"><Image className="game-over-portrait" src={character.portraitAsset} alt={`${character.name} portrait`} width={180} height={180} unoptimized /><strong>{character.name}</strong><p>{character.description}</p></div></div>}
         </div>
         <div className="game-instructions">
           <span>{gameOver ? "GAME OVER" : gameStarted ? "RUNNING" : "PRESS SPACE TO START"}</span>
           <strong>{gameOver ? "Your run is over" : "Jump over the bluff!"}</strong>
+          <strong>{String(score).padStart(5, "0")}</strong><small>Final score</small>
           {gameOver ? <button className="restart-button" onClick={restartGame}>Restart</button> : <small>Space / ↑ to jump · Tap to jump</small>}
         </div>
       </section>

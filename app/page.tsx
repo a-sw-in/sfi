@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import data from "./data.json";
 import { cacheCharacter, getCachedCharacter } from "./lib/character-selection";
+import { getCachedPlayer, type CachedPlayer } from "./lib/player-session";
 
 type GameIcon = "bolt" | "book" | "target" | "crown";
 type GameTone = "orange" | "blue" | "purple" | "green";
-type Game = { category: string; description: string; icon: GameIcon; id: string; route: string; title: string; tone: GameTone };
+type Game = { description: string; id: string; imageAsset: string; route: string; title: string; tone: GameTone };
 type Character = { description: string; gameAsset: string; name: string; portraitAsset: string; slug: string; tone: GameTone };
 const games = data.games as Game[];
 const characters = data.characters as Character[];
@@ -26,7 +27,18 @@ function Icon({ name, size = 22 }: { name: GameIcon; size?: number }) {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<"games" | "characters" | "ranking">("games");
-  const [selectedCharacter, setSelectedCharacter] = useState(() => getCachedCharacter().slug);
+  const [selectedCharacter, setSelectedCharacter] = useState(data.characters[0].slug);
+  const [bannerVersion, setBannerVersion] = useState<string | null>(null);
+  const [player, setPlayer] = useState<CachedPlayer | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSelectedCharacter(getCachedCharacter().slug);
+      setBannerVersion(String(Date.now()));
+      setPlayer(getCachedPlayer());
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const chooseCharacter = (slug: string) => {
     setSelectedCharacter(slug);
@@ -37,7 +49,7 @@ export default function Home() {
   return (
     <main>
       <header className="site-header">
-        <button className="login-button">Login</button>
+        {player ? <span className="logged-in-user">{player.name}</span> : <Link className="login-button" href="/login">Login</Link>}
         <h1>Know Your Candidate</h1>
         <span className="header-space" />
       </header>
@@ -46,9 +58,9 @@ export default function Home() {
         <section className="games-home" aria-label="Game list">
           <div className="section-label">CHOOSE A GAME</div>
           <div className="game-list">
-            {games.map((game, index) => {
-              const content = <><span className={`game-art tone-${game.tone}`}><span className="game-number">0{index + 1}</span><span className="game-icon"><Icon name={game.icon} size={25} /></span><span className="art-ring ring-one" /><span className="art-ring ring-two" /></span><span className="game-details"><span className="game-category">{game.category}</span><strong>{game.title}</strong><span className="game-description">{game.description}</span><span className="play-label">Play now <span>→</span></span></span></>;
-              return index === 0 ? <Link className="game-card" href={game.route} key={game.title}>{content}</Link> : <button className="game-card" key={game.title}>{content}</button>;
+            {games.map((game) => {
+              const content = <><span className={`game-art tone-${game.tone}`}><Image className="game-image" src={game.imageAsset} alt={`${game.title} icon`} width={42} height={42} /></span><span className="game-details"><strong>{game.title}</strong><span className="game-description">{game.description}</span></span></>;
+              return <Link className="game-card" href={game.route} key={game.title}>{content}</Link>;
             })}
           </div>
         </section>
@@ -61,7 +73,7 @@ export default function Home() {
           <div className="character-grid">
             {characters.map((character, index) => (
               <button className={`character-card ${selectedCharacter === character.slug ? "selected-character" : ""}`} key={character.name} onClick={() => chooseCharacter(character.slug)}>
-                <span className={`character-art tone-${character.tone}`}><Image src={character.portraitAsset.replace("/portrait.png", "/banner.png")} alt={`${character.name} banner`} width={70} height={70} /><small>0{index + 1}</small></span>
+                <span className={`character-art tone-${character.tone}`}><Image src={`${character.portraitAsset.replace("/portrait.png", "/banner.png")}${bannerVersion ? `?v=${bannerVersion}` : ""}`} alt={`${character.name} banner`} width={70} height={70} /><small>0{index + 1}</small></span>
                 <span className="character-info"><strong>{character.name}</strong><span>{character.description}</span></span>
               </button>
             ))}

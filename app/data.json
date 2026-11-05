@@ -1,0 +1,32 @@
+{
+  "games": [
+    { "id": "Runner", "title": "Runner", "category": "Speed round", "description": "Match the promise to the person who made it.", "icon": "bolt", "tone": "orange", "route": "/games/promise-or-bluff" }
+  ],
+  "characters": [
+    { "slug": "decoder", "name": "The Decoder", "description": "Finds the facts hiding in plain sight.", "tone": "orange", "portraitAsset": "/characters/decoder/portrait.png", "gameAsset": "/characters/decoder/game.png" },
+    { "slug": "challenger", "name": "The Challenger", "description": "Questions every promise.", "tone": "blue", "portraitAsset": "/characters/challenger/portrait.png", "gameAsset": "/characters/challenger/game.png" },
+    { "slug": "connector", "name": "The Connector", "description": "Links people, ideas, and issues.", "tone": "purple", "portraitAsset": "/characters/connector/portrait.png", "gameAsset": "/characters/connector/game.png" },
+    { "slug": "strategist", "name": "The Strategist", "description": "Thinks three moves ahead.", "tone": "green", "portraitAsset": "/characters/strategist/portrait.png", "gameAsset": "/characters/strategist/game.png" },
+    { "slug": "investigator", "name": "The Investigator", "description": "Always digs a little deeper.", "tone": "orange", "portraitAsset": "/characters/investigator/portrait.png", "gameAsset": "/characters/investigator/game.png" },
+    { "slug": "debater", "name": "The Debater", "description": "Ready with a sharp comeback.", "tone": "blue", "portraitAsset": "/characters/debater/portrait.png", "gameAsset": "/characters/debater/game.png" },
+    { "slug": "bridge-builder", "name": "The Bridge Builder", "description": "Looks for common ground.", "tone": "purple", "portraitAsset": "/characters/bridge-builder/portrait.png", "gameAsset": "/characters/bridge-builder/game.png" },
+    { "slug": "visionary", "name": "The Visionary", "description": "Imagines a better tomorrow.", "tone": "green", "portraitAsset": "/characters/visionary/portrait.png", "gameAsset": "/characters/visionary/game.png" },
+    { "slug": "historian", "name": "The Historian", "description": "Knows what came before.", "tone": "orange", "portraitAsset": "/characters/historian/portrait.png", "gameAsset": "/characters/historian/game.png" },
+    { "slug": "advocate", "name": "The Advocate", "description": "Stands up for what matters.", "tone": "blue", "portraitAsset": "/characters/advocate/portrait.png", "gameAsset": "/characters/advocate/game.png" },
+    { "slug": "analyst", "name": "The Analyst", "description": "Sees the patterns in the data.", "tone": "purple", "portraitAsset": "/characters/analyst/portrait.png", "gameAsset": "/characters/analyst/game.png" },
+    { "slug": "community-voice", "name": "The Community Voice", "description": "Puts people first.", "tone": "green", "portraitAsset": "/characters/community-voice/portrait.png", "gameAsset": "/characters/community-voice/game.png" },
+    { "slug": "truth-seeker", "name": "The Truth Seeker", "description": "Keeps every answer honest.", "tone": "orange", "portraitAsset": "/characters/truth-seeker/portrait.png", "gameAsset": "/characters/truth-seeker/game.png" }
+  ],
+  "topPlayers": [
+    ["Aarav Kulkarni", "12,480", "AK", "gold"],
+    ["Sana Mehta", "11,920", "SM", "silver"],
+    ["Rohan Nair", "10,870", "RN", "bronze"],
+    ["Meera Shah", "9,640", "MS", "red"],
+    ["Kabir Joshi", "9,210", "KJ", "blue"],
+    ["Tara Menon", "8,875", "TM", "purple"]
+  ],
+  "gameAssets": {
+    "cactus": "/game-obstacles/cactus.png",
+    "bonfire": "/game-obstacles/bonfire.png"
+  }
+}

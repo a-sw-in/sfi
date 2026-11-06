@@ -3,13 +3,17 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGame } from "../../store/gameStore";
-import { getCachedCharacter } from "../../lib/character-selection";
+import data from "../../data.json";
+import { getCachedCharacter, type CachedCharacter } from "../../lib/character-selection";
 import { getCachedPlayer, getCachedPlayerPhone } from "../../lib/player-session";
 import { addPlayerPoints } from "../../lib/player-points";
 
-const Scene = dynamic(() => import("./GameScene"), { ssr: false });
+const Scene = dynamic(() => import("./GameScene"), {
+  ssr: false,
+  loading: () => <div className="subway-three-loading">Loading Subway...</div>,
+});
 
 export default function Game() {
   const mode = useGame((state) => state.mode);
@@ -20,12 +24,22 @@ export default function Game() {
   const pause = useGame((state) => state.pause);
   const resume = useGame((state) => state.resume);
   const reset = useGame((state) => state.reset);
+  const hydrateBest = useGame((state) => state.hydrateBest);
   const muted = useGame((state) => state.muted);
   const toggleMute = useGame((state) => state.toggleMute);
   const router = useRouter();
-  const isLoggedIn = getCachedPlayer() !== null;
-  const selectedCharacter = getCachedCharacter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [selectedCharacter, setSelectedCharacter] = useState<CachedCharacter>(() => data.characters[0]);
   const pointsAwardedRef = useRef(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setIsLoggedIn(getCachedPlayer() !== null);
+      setSelectedCharacter(getCachedCharacter());
+      hydrateBest();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [hydrateBest]);
 
   useEffect(() => {
     if (mode === "playing") {

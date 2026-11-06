@@ -93,6 +93,7 @@ main { background: var(--paper); border-left: 1px solid #fff; border-right: 1px 
 .subway-help { color: #43868b; font-size: 10px; margin: 10px auto 0; max-width: 560px; text-align: center; }
 
 .subway-three-game { background: #240808; color: #fff; height: 100vh; max-width: none; overflow: hidden; overscroll-behavior: none; padding: 0; position: relative; touch-action: none; }
+.subway-three-loading { align-items: center; background: #240808; color: #fecaca; display: flex; font-size: 18px; font-weight: 800; inset: 0; justify-content: center; position: absolute; }
 .subway-three-game canvas { display: block; height: 100% !important; width: 100% !important; }
 .subway-three-vignette { background: linear-gradient(180deg, rgb(60 5 5 / 36%), transparent 30%, transparent 65%, rgb(0 0 0 / 52%)); inset: 0; pointer-events: none; position: absolute; }
 .subway-three-title { left: 0; pointer-events: none; position: absolute; right: 0; text-align: center; top: 8%; text-shadow: 0 4px 12px rgb(0 0 0 / 80%); }.subway-three-title div { font-size: clamp(36px, 8vw, 72px); font-weight: 900; letter-spacing: .16em; }.subway-three-title small { color: #fecaca; font-size: clamp(16px, 3vw, 26px); font-weight: 700; letter-spacing: .45em; }

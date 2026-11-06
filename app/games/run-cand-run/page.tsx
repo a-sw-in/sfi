@@ -7,6 +7,7 @@ import data from "../../data.json";
 import { getCachedCharacter } from "../../lib/character-selection";
 import { getCachedPlayerPhone } from "../../lib/player-session";
 import { addPlayerPoints } from "../../lib/player-points";
+import { useGame } from "../../store/gameStore";
 
 export default function PromiseOrBluff() {
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
@@ -29,6 +30,8 @@ export default function PromiseOrBluff() {
   const stageRef = useRef<HTMLDivElement>(null);
   const audioContext = useRef<AudioContext | null>(null);
   const gameOverTimer = useRef<number | null>(null);
+  const muted = useGame((state) => state.muted);
+  const toggleMute = useGame((state) => state.toggleMute);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -38,6 +41,7 @@ export default function PromiseOrBluff() {
   }, []);
 
   const playSound = useCallback((frequency: number, duration: number, type: OscillatorType = "square") => {
+    if (muted) return;
     const AudioContextClass = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     audioContext.current ??= new AudioContextClass();
@@ -52,7 +56,7 @@ export default function PromiseOrBluff() {
     gain.connect(context.destination);
     oscillator.start();
     oscillator.stop(context.currentTime + duration);
-  }, []);
+  }, [muted]);
 
   const jump = useCallback(() => {
     if (gameOver) return;
@@ -106,8 +110,7 @@ export default function PromiseOrBluff() {
     }
   }, [playerPhone]);
 
-  const handleGameTouch = (event: TouchEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) return;
+  const handleGameTouch = (event: TouchEvent<HTMLElement>) => {
     event.preventDefault();
     jump();
   };
@@ -147,12 +150,14 @@ export default function PromiseOrBluff() {
       setObstacleX(obstaclePosition.current);
       const playerLeft = stageWidth * 0.18 + 4;
       const playerRight = stageWidth * 0.18 + 57;
-      const obstacleLeft = obstaclePosition.current + 4;
-      const obstacleRight = obstaclePosition.current + 54;
+      const obstacleHitboxWidth = 58 * 0.75;
+      const obstacleHitboxHeight = 58 * 0.75;
+      const obstacleLeft = obstaclePosition.current + (58 - obstacleHitboxWidth) / 2;
+      const obstacleRight = obstacleLeft + obstacleHitboxWidth;
       const playerBottom = 34 + jumpY.current + 4;
       const playerTop = playerBottom + 48;
-      const obstacleBottom = 31 + 4;
-      const obstacleTop = obstacleBottom + 54;
+      const obstacleBottom = 31 + (58 - obstacleHitboxHeight) / 2;
+      const obstacleTop = obstacleBottom + obstacleHitboxHeight;
       if (playerRight > obstacleLeft && playerLeft < obstacleRight && playerTop > obstacleBottom && playerBottom < obstacleTop) {
         playSound(110, 0.35, "sawtooth");
         setGameOver(true);
@@ -171,7 +176,7 @@ export default function PromiseOrBluff() {
   }, [gameStarted, gameOver, playSound, saveGamePoints]);
 
   return (
-    <main className="is-playing">
+    <main className="is-playing" onTouchStart={handleGameTouch}>
       <header className="site-header">
         <Link className="back-button" href="/">← Back</Link>
         <h1>Know Your Candidate</h1>
@@ -179,7 +184,7 @@ export default function PromiseOrBluff() {
       </header>
       <section className="dino-game" aria-label="Promise or Bluff game" data-player-phone={playerPhone ?? undefined}>
         <div className="game-screen-header"><span /><strong>Run Candidate Run</strong><span className="game-score">{String(score).padStart(5, "0")}</span></div>
-        <div className={`dino-stage ${gameStarted && !gameOver ? "running" : ""}`} ref={stageRef} onTouchStart={handleGameTouch}>
+        <div className={`dino-stage ${gameStarted && !gameOver ? "running" : ""}`} ref={stageRef}>
           <div className="game-cloud cloud-one" /><div className="game-cloud cloud-two" />
           {character && <Image key={character.slug} className={`runner-character character-${character.slug} ${isJumping ? "jumping" : ""}`} src={`${character.gameAsset}?v=${character.slug}`} alt={`${character.name} character`} width={138} height={86} priority unoptimized style={{ bottom: `${34 + playerY}px` }} />}
           <Image className={`obstacle obstacle-${obstacleType}`} src={data.gameAssets[obstacleType]} alt="" width={58} height={58} style={{ left: `${obstacleX}px` }} />
@@ -190,9 +195,10 @@ export default function PromiseOrBluff() {
           <span>{gameOver ? "GAME OVER" : gameStarted ? "RUNNING" : "PRESS SPACE TO START"}</span>
           <strong>{gameOver ? "Your run is over" : "Jump over the bluff!"}</strong>
           <strong>{String(score).padStart(5, "0")}</strong><small>Final score</small>
-          {gameOver ? <button className="restart-button" onClick={restartGame}>Restart</button> : <small>Space / ↑ to jump · Tap to jump</small>}
+          {gameOver ? <><button className="restart-button" onClick={restartGame}>Restart</button>{!playerPhone && <><small className="leaderboard-login-description">Login to enter the leaderboard.</small><Link className="login-game-button" href="/login">Login</Link></>}</> : <small>Space / ↑ to jump · Tap to jump</small>}
         </div>
       </section>
+      <button className="dino-mute" type="button" onClick={toggleMute}>{muted ? "🔇" : "🔊"}</button>
     </main>
   );
 }

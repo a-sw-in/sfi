@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import data from "./data.json";
 import { cacheCharacter, getCachedCharacter } from "./lib/character-selection";
 import { getCachedPlayer, type CachedPlayer } from "./lib/player-session";
+import { supabase } from "./lib/supabase";
 
 type GameIcon = "bolt" | "book" | "target" | "crown";
 type GameTone = "orange" | "blue" | "purple" | "green";
@@ -13,7 +14,7 @@ type Game = { description: string; id: string; imageAsset: string; route: string
 type Character = { description: string; gameAsset: string; name: string; portraitAsset: string; slug: string; tone: GameTone };
 const games = data.games as Game[];
 const characters = data.characters as Character[];
-const topPlayers = data.topPlayers;
+type RankingPlayer = { name: string; phone: string; points: number };
 
 function Icon({ name, size = 22 }: { name: GameIcon; size?: number }) {
   const paths = {
@@ -30,6 +31,9 @@ export default function Home() {
   const [selectedCharacter, setSelectedCharacter] = useState(data.characters[0].slug);
   const [bannerVersion, setBannerVersion] = useState<string | null>(null);
   const [player, setPlayer] = useState<CachedPlayer | null>(null);
+  const [ranking, setRanking] = useState<RankingPlayer[]>([]);
+  const [rankingLoading, setRankingLoading] = useState(false);
+  const [rankingError, setRankingError] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -39,6 +43,36 @@ export default function Home() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "ranking") return;
+
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setRankingLoading(true);
+      setRankingError("");
+      void supabase
+        .from("players")
+        .select("name, phone, points")
+        .order("points", { ascending: false })
+        .then(({ data: players, error }) => {
+          if (!active) return;
+          if (error) {
+            console.error("Unable to load leaderboard", error);
+            setRankingError("Leaderboard could not be loaded. Please try again.");
+            setRankingLoading(false);
+            return;
+          }
+          setRanking((players ?? []).map((item) => ({ name: item.name, phone: String(item.phone), points: Number(item.points ?? 0) })));
+          setRankingLoading(false);
+        });
+    }, 0);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [activeTab]);
 
   const chooseCharacter = (slug: string) => {
     setSelectedCharacter(slug);
@@ -85,8 +119,13 @@ export default function Home() {
         <section className="ranking-home" aria-label="Top ranked players">
           <div className="section-label">TOP PLAYERS</div>
           <h2>Climb the leaderboard.</h2>
-          <div className="ranking-period"><span className="selected">This week</span><span>All time</span></div>
-          <div className="leaderboard">{topPlayers.map(([name, points, initials, tone], index) => <div className={`player-row player-${tone}`} key={name}><span className="player-rank">{index + 1}</span><span className="player-avatar">{initials}</span><span className="player-name">{name}</span><span className="player-score">{points}<small> pts</small></span></div>)}</div>
+          {!player && <div className="leaderboard-login-box"><strong>Want to enter the leaderboard?</strong><span>Login and play to see your name ranked here.</span><Link className="leaderboard-login-button" href="/login">Login</Link></div>}
+          {rankingLoading && <p className="leaderboard-status">Loading leaderboard...</p>}
+          {rankingError && <p className="leaderboard-status leaderboard-error" role="alert">{rankingError}</p>}
+          {!rankingLoading && !rankingError && <div className="leaderboard">{ranking.map((rankedPlayer, index) => {
+            const isCurrentPlayer = player?.phone === rankedPlayer.phone;
+            return <div className={`player-row ${index < 3 ? `player-podium player-podium-${index + 1}` : ""} ${isCurrentPlayer ? "player-current" : ""}`} key={`${rankedPlayer.name}-${index}`}><span className="player-rank">{index + 1}</span><span className="player-name">{rankedPlayer.name}</span>{isCurrentPlayer && <span className="player-you">YOU</span>}<span className="player-score">{rankedPlayer.points.toLocaleString()}<small> pts</small></span></div>;
+          })}</div>}
         </section>
       )}
 

@@ -1,7 +1,9 @@
 import data from "../data.json";
 
 export type CachedCharacter = {
+  description: string;
   gameAsset: string;
+  name: string;
   portraitAsset: string;
   slug: string;
 };
@@ -49,7 +51,9 @@ export function cacheCharacter(slug: string): CachedCharacter {
 function createCharacter(slug: string): CachedCharacter {
   const character = data.characters.find((item) => item.slug === slug) ?? data.characters[0];
   return {
+    description: character.description,
     gameAsset: character.gameAsset,
+    name: character.name,
     portraitAsset: character.portraitAsset,
     slug: character.slug,
   };

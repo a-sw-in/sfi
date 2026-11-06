@@ -125,7 +125,7 @@ export default function Home() {
           {!rankingLoading && !rankingError && <div className="leaderboard">{ranking.map((rankedPlayer, index) => {
             const isCurrentPlayer = player?.phone === rankedPlayer.phone;
             return <div className={`player-row ${index < 3 ? `player-podium player-podium-${index + 1}` : ""} ${isCurrentPlayer ? "player-current" : ""}`} key={`${rankedPlayer.name}-${index}`}><span className="player-rank">{index + 1}</span><span className="player-name">{rankedPlayer.name}</span>{isCurrentPlayer && <span className="player-you">YOU</span>}<span className="player-score">{rankedPlayer.points.toLocaleString()}<small> pts</small></span></div>;
-          })}</div>}
+          })}</div>}<p className="site-credit">© 2026 SFIUCE. All rights reserved. Designed and Developed by <strong><a href="http://github.com/a-sw-in">Aswin S</a></strong></p>
         </section>
       )}
 

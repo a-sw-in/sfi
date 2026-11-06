@@ -116,6 +116,7 @@ main { background: var(--paper); border-left: 1px solid #fff; border-right: 1px 
 
 .ranking-home { padding: 29px 22px 24px; }
 .ranking-home h2 { color: var(--red-dark); font-size: 32px; letter-spacing: -1.5px; margin: 8px 0 22px; }
+.site-credit { color: var(--muted); font-size: 10px; letter-spacing: .3px; margin: 28px 0 8px; text-align: center; }.site-credit strong { color: var(--red-dark); font-weight: 800; }
 .leaderboard { background: #fff; border: 2px solid var(--line); border-radius: 18px; box-shadow: 0 5px 0 #f1d8da; overflow: hidden; }
 .player-row { align-items: center; border-bottom: 1px solid var(--line); display: flex; gap: 12px; min-height: 69px; padding: 0 16px; }
 .player-row:last-child { border-bottom: 0; }

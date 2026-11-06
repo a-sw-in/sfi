@@ -115,6 +115,8 @@ function World() {
   const distance = useRef(0);
   const objects = useRef<{ z: number; lane: number; coin: boolean; mesh: THREE.Mesh }[]>([]);
   const spawn = useRef(0);
+  const lastCoinDistance = useRef(-60);
+  const lastObstacleDistance = useRef(-90);
   const previousMode = useRef(mode);
 
   const playCoinSound = () => {
@@ -198,26 +200,36 @@ function World() {
         spawn.current = 0;
         elapsed.current = 0;
         distance.current = 0;
+        lastCoinDistance.current = -60;
+        lastObstacleDistance.current = -90;
       }
     }
     if (mode !== "playing") return;
     elapsed.current += delta;
-    const speed = 13 + Math.floor(distance.current / 10) * 0.1;
+    const difficultyDistance = Math.min(distance.current, 750);
+    const speed = 13 + Math.min(difficultyDistance * 0.012, 9);
+    const obstacleSpeed = speed * 1.1 ** Math.floor(difficultyDistance / 50);
     distance.current += delta * speed;
     setScore(Math.floor(elapsed.current * 10));
     spawn.current -= delta;
     if (spawn.current <= 0 && refs.current) {
       spawn.current = Math.max(0.45, 1.1 - elapsed.current * 0.005);
-      const coin = Math.random() < 0.55;
+      const coinIsDue = distance.current - lastCoinDistance.current >= 70;
+      const obstacleIsDue = distance.current - lastObstacleDistance.current >= 120;
+      const obstacleRate = 0.7 * 1.1;
+      const coinRate = 0.3 * 1.3 * 1.3;
+      const coin = coinIsDue || (!obstacleIsDue && Math.random() < coinRate / (obstacleRate + coinRate));
       const lane = Math.floor(Math.random() * 3);
       const mesh = new THREE.Mesh(coin ? new THREE.TorusGeometry(0.35, 0.1, 8, 16) : new THREE.BoxGeometry(1.5, 2.5, 2.5), new THREE.MeshStandardMaterial({ color: coin ? "#facc15" : "#ef4444", metalness: coin ? 0.8 : 0.1 }));
       mesh.position.set(LANE_X[lane], coin ? 1.1 : 1.25, -65);
       mesh.castShadow = true;
       refs.current.add(mesh);
       objects.current.push({ z: -65, lane, coin, mesh });
+      if (coin) lastCoinDistance.current = distance.current;
+      else lastObstacleDistance.current = distance.current;
     }
     for (const object of objects.current) {
-      object.z += delta * speed;
+      object.z += delta * (object.coin ? speed : obstacleSpeed);
       object.mesh.position.z = object.z;
       if (object.coin) object.mesh.rotation.y += delta * 3;
       if (object.z > PLAYER_Z - 1 && object.z < PLAYER_Z + 1) {

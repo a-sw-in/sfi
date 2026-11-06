@@ -98,7 +98,7 @@ function Runner() {
   });
 
   if (mode !== "playing") return null;
-  return <group name="runner" ref={group} position={[0, 0, PLAYER_Z]}><Html center position={[0, 1.25, 0]} transform distanceFactor={7} style={{ pointerEvents: "none" }}><Image src={`/characters/${selectedCharacter.slug}/subway.gif?v=1`} alt="" width={123} height={179} unoptimized priority style={{ objectFit: "contain" }} /></Html></group>;
+  return <group name="runner" ref={group} position={[0, 0, PLAYER_Z]}><Html center position={[0, 1.25, 0]} transform distanceFactor={7} style={{ pointerEvents: "none" }}><Image src={`/characters/${selectedCharacter.slug}/subway.gif?v=1`} alt="" width={123} height={179} unoptimized priority style={{ height: "auto", objectFit: "contain" }} /></Html></group>;
 }
 
 function World() {

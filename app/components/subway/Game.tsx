@@ -89,6 +89,7 @@ export default function Game() {
                 height={179}
                 unoptimized
                 priority
+                style={{ height: "auto" }}
               />
             </div>
             <div className="subway-three-menu-content">

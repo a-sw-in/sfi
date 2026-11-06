@@ -2,12 +2,69 @@
 
 import Image from "next/image";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment, Html, PerspectiveCamera } from "@react-three/drei";
+import { Html, PerspectiveCamera } from "@react-three/drei";
 import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useGame } from "../../store/gameStore";
 import { LANE_X, PLAYER_Z } from "../../lib/game/constants";
 import { getCachedCharacter } from "../../lib/character-selection";
+
+type VehicleType = "car" | "lorry" | "bus";
+
+function createVehicle(type: VehicleType): THREE.Group {
+  const vehicle = new THREE.Group();
+  const addBox = (size: [number, number, number], position: [number, number, number], color: string, metalness = 0) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshStandardMaterial({ color, metalness }));
+    mesh.position.set(...position);
+    vehicle.add(mesh);
+    return mesh;
+  };
+  const addWheel = (x: number, z: number, radius = 0.28) => {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.18, 12), new THREE.MeshStandardMaterial({ color: "#111827" }));
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(x, radius, z);
+    vehicle.add(wheel);
+    addBox([0.06, radius * 0.75, 0.2], [x > 0 ? x - 0.1 : x + 0.1, radius, z], "#94a3b8", 0.5);
+  };
+  if (type === "car") {
+    addBox([1.45, 0.48, 2.25], [0, 0.55, 0], "#2563eb", 0.15);
+    addBox([1.2, 0.48, 0.95], [0, 1.02, -0.18], "#60a5fa", 0.1);
+    addBox([1.02, 0.3, 0.05], [0, 1.05, 0.32], "#172554", 0.4);
+    addBox([1.04, 0.12, 0.08], [0, 0.43, 1.16], "#1d4ed8", 0.1);
+    addBox([0.2, 0.12, 0.06], [-0.48, 0.66, 1.14], "#fef08a", 0.2);
+    addBox([0.2, 0.12, 0.06], [0.48, 0.66, 1.14], "#fef08a", 0.2);
+    addWheel(-0.7, -0.72);
+    addWheel(0.7, -0.72);
+    addWheel(-0.7, 0.72);
+    addWheel(0.7, 0.72);
+  } else if (type === "lorry") {
+    addBox([1.75, 1.65, 2.25], [0, 1.25, -0.55], "#f97316", 0.15);
+    addBox([1.58, 1.15, 1.35], [0, 0.95, 1.18], "#facc15", 0.1);
+    addBox([1.2, 0.5, 0.06], [0, 1.38, 1.87], "#172554", 0.4);
+    addBox([1.05, 0.12, 0.08], [0, 0.45, 1.89], "#b45309", 0.1);
+    addBox([0.22, 0.16, 0.06], [-0.55, 1.02, 1.91], "#fef08a", 0.2);
+    addBox([0.22, 0.16, 0.06], [0.55, 1.02, 1.91], "#fef08a", 0.2);
+    addBox([0.12, 0.18, 0.25], [-0.92, 1.12, 1.32], "#334155", 0.3);
+    addBox([0.12, 0.18, 0.25], [0.92, 1.12, 1.32], "#334155", 0.3);
+    for (const x of [-0.78, 0.78]) {
+      addWheel(x, -1.12, 0.36);
+      addWheel(x, 0.55, 0.36);
+      addWheel(x, 1.35, 0.3);
+    }
+  } else {
+    addBox([1.8, 2.2, 3.8], [0, 1.3, 0], "#dc2626", 0.15);
+    addBox([1.5, 0.85, 0.08], [0, 1.72, 1.93], "#172554", 0.4);
+    addBox([1.2, 0.12, 0.08], [0, 0.35, 1.95], "#991b1b", 0.1);
+    for (const x of [-0.8, 0.8]) {
+      addWheel(x, -1.35, 0.34);
+      addWheel(x, 1.35, 0.34);
+    }
+  }
+  vehicle.traverse((child) => {
+    if (child instanceof THREE.Mesh) child.castShadow = true;
+  });
+  return vehicle;
+}
 
 function Runner() {
   const selectedCharacter = getCachedCharacter();
@@ -103,6 +160,7 @@ function Runner() {
 
 function World() {
   const refs = useRef<THREE.Group>(null);
+  const roadMarkings = useRef<THREE.Group>(null);
   const mode = useGame((state) => state.mode);
   const setScore = useGame((state) => state.setScore);
   const addCoin = useGame((state) => state.addCoin);
@@ -110,11 +168,12 @@ function World() {
   const audioContext = useRef<AudioContext | null>(null);
   const elapsed = useRef(0);
   const distance = useRef(0);
-  const objects = useRef<{ z: number; lane: number; coin: boolean; mesh: THREE.Mesh }[]>([]);
+  const objects = useRef<{ z: number; lane: number; coin: boolean; mesh: THREE.Group }[]>([]);
   const spawn = useRef(0);
   const lastCoinDistance = useRef(-60);
   const lastObstacleDistance = useRef(-90);
   const previousMode = useRef(mode);
+  const displayedScore = useRef(-1);
 
   const playCoinSound = () => {
     if (muted) return;
@@ -190,8 +249,12 @@ function World() {
       if (mode === "menu" || mode === "over") {
         for (const object of objects.current) {
           refs.current?.remove(object.mesh);
-          object.mesh.geometry.dispose();
-          (object.mesh.material as THREE.Material).dispose();
+          object.mesh.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.geometry.dispose();
+              child.material.dispose();
+            }
+          });
         }
         objects.current = [];
         spawn.current = 0;
@@ -207,7 +270,15 @@ function World() {
     const speed = 13 + Math.min(difficultyDistance * 0.012, 9);
     const obstacleSpeed = speed * 1.1 ** Math.floor(difficultyDistance / 50);
     distance.current += delta * speed;
-    setScore(Math.floor(elapsed.current * 10));
+    roadMarkings.current?.children.forEach((marking) => {
+      marking.position.z += delta * obstacleSpeed;
+      if (marking.position.z > 14) marking.position.z -= 150;
+    });
+    const nextScore = Math.floor(elapsed.current * 10);
+    if (nextScore !== displayedScore.current) {
+      displayedScore.current = nextScore;
+      setScore(nextScore);
+    }
     spawn.current -= delta;
     if (spawn.current <= 0 && refs.current) {
       spawn.current = Math.max(0.45, 1.1 - elapsed.current * 0.005);
@@ -217,9 +288,15 @@ function World() {
       const coinRate = 0.3 * 1.3 * 1.3;
       const coin = coinIsDue || (!obstacleIsDue && Math.random() < coinRate / (obstacleRate + coinRate));
       const lane = Math.floor(Math.random() * 3);
-      const mesh = new THREE.Mesh(coin ? new THREE.TorusGeometry(0.35, 0.1, 8, 16) : new THREE.BoxGeometry(1.5, 2.5, 2.5), new THREE.MeshStandardMaterial({ color: coin ? "#facc15" : "#ef4444", metalness: coin ? 0.8 : 0.1 }));
+      const mesh = new THREE.Group();
+      if (coin) {
+        const coinMesh = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 8, 16), new THREE.MeshStandardMaterial({ color: "#facc15", metalness: 0.8 }));
+        coinMesh.castShadow = true;
+        mesh.add(coinMesh);
+      } else {
+        mesh.add(createVehicle((["car", "lorry", "bus"] as VehicleType[])[Math.floor(Math.random() * 3)]));
+      }
       mesh.position.set(LANE_X[lane], coin ? 1.1 : 1.25, -65);
-      mesh.castShadow = true;
       refs.current.add(mesh);
       objects.current.push({ z: -65, lane, coin, mesh });
       if (coin) lastCoinDistance.current = distance.current;
@@ -245,19 +322,27 @@ function World() {
     objects.current = objects.current.filter((object) => {
       if (object.z > 12) {
         refs.current?.remove(object.mesh);
-        object.mesh.geometry.dispose();
-        (object.mesh.material as THREE.Material).dispose();
+        object.mesh.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            child.material.dispose();
+          }
+        });
         return false;
       }
       return true;
     });
   });
 
-  return <group ref={refs}><mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.15, -35]} receiveShadow><planeGeometry args={[80, 150]} /><meshStandardMaterial color="#1f2933" /></mesh>{[-2.2, 0, 2.2].map((x) => <mesh key={x} position={[x, -0.05, -35]}><boxGeometry args={[1.9, 0.1, 150]} /><meshStandardMaterial color="#374151" /></mesh>)}{[-3.2, -1.2, 1.2, 3.2].map((x) => <mesh key={x} position={[x, 0.12, -35]}><boxGeometry args={[0.13, 0.22, 150]} /><meshStandardMaterial color="#d1d5db" metalness={0.7} /></mesh>)}{Array.from({ length: 18 }, (_, index) => <group key={index} position={[(index % 2 ? 1 : -1) * (7 + (index % 4)), 0, -index * 8 - 5]}><mesh position={[0, 2, 0]}><boxGeometry args={[4, 4 + (index % 3), 4]} /><meshStandardMaterial color={index % 2 ? "#542020" : "#6b2929"} /></mesh><mesh position={[0, 4, 0]}><boxGeometry args={[4.2, 0.3, 4.2]} /><meshStandardMaterial color="#991b1b" /></mesh>{Array.from({ length: 12 }, (_, windowIndex) => <mesh key={windowIndex} position={[-1.25 + (windowIndex % 3) * 1.25, 1.25 + Math.floor(windowIndex / 3) * 1.05, 2.01]}><boxGeometry args={[0.55, 0.48, 0.06]} /><meshStandardMaterial color={windowIndex % 4 === 0 ? "#fbbf24" : "#fecaca"} emissive={windowIndex % 4 === 0 ? "#f59e0b" : "#b91c1c"} emissiveIntensity={windowIndex % 4 === 0 ? 1.2 : 0.35} /></mesh>)}</group>)}</group>;
+  return <group ref={refs}><mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.15, -35]} receiveShadow><planeGeometry args={[80, 150]} /><meshStandardMaterial color="#111827" /></mesh>{[-2.2, 0, 2.2].map((x) => <mesh key={x} position={[x, -0.05, -35]}><boxGeometry args={[1.9, 0.1, 150]} /><meshStandardMaterial color="#1f2937" /></mesh>)}{[-3.35, 3.35].map((x) => <group key={`barrier-${x}`} position={[x, 0, -35]}><mesh position={[0, 0.65, 0]}><boxGeometry args={[0.16, 0.16, 150]} /><meshStandardMaterial color="#f8fafc" metalness={0.5} /></mesh><mesh position={[0, 0.32, 0]}><boxGeometry args={[0.12, 0.12, 150]} /><meshStandardMaterial color="#94a3b8" metalness={0.6} /></mesh>{Array.from({ length: 16 }, (_, index) => <group key={index} name="barrier-support" position={[0, 0, -index * 10 - 5]}><mesh position={[0, 0.35, 0]}><boxGeometry args={[0.3, 0.7, 0.3]} /><meshStandardMaterial color="#64748b" metalness={0.5} /></mesh><mesh position={[0, 0.72, 0.16]}><boxGeometry args={[0.18, 0.12, 0.04]} /><meshStandardMaterial color="#facc15" emissive="#f59e0b" emissiveIntensity={0.8} /></mesh></group>)}</group>)}<group ref={roadMarkings}>{Array.from({ length: 16 }, (_, index) => <group key={`marking-${index}`} position={[index % 2 ? 1.1 : -1.1, 0.08, -index * 10 - 5]}><mesh><boxGeometry args={[0.12, 0.06, 4.2]} /><meshStandardMaterial color="#ffffff" emissive="#cbd5e1" emissiveIntensity={0.2} /></mesh></group>)}</group>{Array.from({ length: 12 }, (_, index) => <group key={`prop-${index}`} name="roadside-prop" position={[(index % 2 ? 1 : -1) * (5.8 + (index % 3)), 0, -index * 15 - 10]}><mesh position={[0, 0.08, 0]}><boxGeometry args={[2.8, 0.16, 8]} /><meshStandardMaterial color={index % 2 ? "#64748b" : "#78716c"} /></mesh><mesh position={[0, 0.3, 0]}><boxGeometry args={[1.2, 0.45, 0.8]} /><meshStandardMaterial color={index % 3 ? "#16a34a" : "#92400e"} /></mesh><mesh position={[0, 1.8, 0]}><cylinderGeometry args={[0.07, 0.07, 3]} /><meshStandardMaterial color="#475569" /></mesh><mesh position={[0, 3.35, 0]}><sphereGeometry args={[0.32, 8, 8]} /><meshStandardMaterial color="#fde047" emissive="#facc15" emissiveIntensity={0.8} /></mesh></group>)}{Array.from({ length: 14 }, (_, index) => <group key={`detail-${index}`} name="detail" position={[(index % 2 ? 1 : -1) * (6.5 + (index % 3) * 1.5), 0, -index * 10 - 8]}><mesh position={[0, 2.4, 0]}><cylinderGeometry args={[0.18, 0.25, 4.8, 8]} /><meshStandardMaterial color="#334155" /></mesh><mesh position={[0, 5, 0]}><sphereGeometry args={[1.35, 10, 8]} /><meshStandardMaterial color={index % 2 ? "#166534" : "#15803d"} /></mesh><mesh position={[0, 4.3, 0.35]}><boxGeometry args={[1.8, 0.7, 0.08]} /><meshStandardMaterial color={index % 3 ? "#facc15" : "#38bdf8"} emissive={index % 3 ? "#f59e0b" : "#0284c7"} emissiveIntensity={0.7} /></mesh></group>)}{Array.from({ length: 18 }, (_, index) => <group key={`building-${index}`} name="building" position={[(index % 2 ? 1 : -1) * (7 + (index % 4)), 0, -index * 8 - 5]}><mesh position={[0, 2, 0]}><boxGeometry args={[4, 4 + (index % 3), 4]} /><meshStandardMaterial color={index % 2 ? "#542020" : "#6b2929"} /></mesh><mesh position={[0, 4, 0]}><boxGeometry args={[4.2, 0.3, 4.2]} /><meshStandardMaterial color="#991b1b" /></mesh>{Array.from({ length: 12 }, (_, windowIndex) => <mesh key={windowIndex} position={[-1.25 + (windowIndex % 3) * 1.25, 1.25 + Math.floor(windowIndex / 3) * 1.05, 2.01]}><boxGeometry args={[0.55, 0.48, 0.06]} /><meshStandardMaterial color={windowIndex % 4 === 0 ? "#fbbf24" : "#fecaca"} emissive={windowIndex % 4 === 0 ? "#f59e0b" : "#b91c1c"} emissiveIntensity={windowIndex % 4 === 0 ? 1.2 : 0.35} /></mesh>)}</group>)}</group>;
+}
+
+function SkyDecor() {
+  return <group><mesh position={[-10, 11, -42]}><sphereGeometry args={[2.2, 20, 20]} /><meshBasicMaterial color="#fde047" /></mesh><pointLight position={[-10, 11, -30]} color="#fff4b5" intensity={20} distance={90} /><group position={[4, 9, -35]}><mesh position={[-1.5, 0, 0]}><sphereGeometry args={[1.2, 12, 12]} /><meshBasicMaterial color="#ffffff" /></mesh><mesh position={[0, 0.35, 0]}><sphereGeometry args={[1.6, 12, 12]} /><meshBasicMaterial color="#ffffff" /></mesh><mesh position={[1.7, 0, 0]}><sphereGeometry args={[1.05, 12, 12]} /><meshBasicMaterial color="#ffffff" /></mesh></group><group position={[-3, 10, -55]}><mesh position={[-1.3, 0, 0]}><sphereGeometry args={[1, 12, 12]} /><meshBasicMaterial color="#f8fafc" /></mesh><mesh position={[0, 0.25, 0]}><sphereGeometry args={[1.35, 12, 12]} /><meshBasicMaterial color="#f8fafc" /></mesh><mesh position={[1.4, 0, 0]}><sphereGeometry args={[0.9, 12, 12]} /><meshBasicMaterial color="#f8fafc" /></mesh></group></group>;
 }
 
 export default function GameScene() {
-  return <Canvas shadows="basic" dpr={[1, 1.5]}><PerspectiveCamera makeDefault position={[0, 5, 10]} fov={60} /><color attach="background" args={["#7f1d1d"]} /><ambientLight intensity={1.1} /><directionalLight position={[5, 12, 5]} intensity={2} castShadow shadow-mapSize={[1024, 1024]} /><World /><Runner /><CameraRig /><Environment preset="city" /></Canvas>;
+  return <Canvas shadows="basic" dpr={[1, 1.25]}><PerspectiveCamera makeDefault position={[0, 5, 10]} fov={60} /><color attach="background" args={["#60b9f5"]} /><fog attach="fog" args={["#60b9f5", 48, 145]} /><ambientLight intensity={1.1} /><directionalLight position={[-10, 12, 5]} intensity={2} castShadow shadow-mapSize={[512, 512]} /><SkyDecor /><World /><Runner /><CameraRig /></Canvas>;
 }
 
 function CameraRig() {

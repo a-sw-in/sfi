@@ -57,20 +57,28 @@ function Runner() {
     window.addEventListener("keyup", up);
     let startX = 0;
     let startY = 0;
-    const touchStart = (event: TouchEvent) => { startX = event.changedTouches[0].clientX; startY = event.changedTouches[0].clientY; };
+    const touchStart = (event: TouchEvent) => {
+      event.preventDefault();
+      startX = event.changedTouches[0].clientX;
+      startY = event.changedTouches[0].clientY;
+    };
+    const touchMove = (event: TouchEvent) => { event.preventDefault(); };
     const touchEnd = (event: TouchEvent) => {
+      event.preventDefault();
       const dx = event.changedTouches[0].clientX - startX;
       const dy = event.changedTouches[0].clientY - startY;
       if (Math.abs(dx) > Math.abs(dy)) lane.current = THREE.MathUtils.clamp(lane.current + (dx > 0 ? 1 : -1), 0, 2);
       else if (dy < 0 && y.current === 0) { velocity.current = 14; playJumpSound(); }
       else if (dy > 0) slide.current = 0.65;
     };
-    window.addEventListener("touchstart", touchStart, { passive: true });
-    window.addEventListener("touchend", touchEnd);
+    window.addEventListener("touchstart", touchStart, { passive: false });
+    window.addEventListener("touchmove", touchMove, { passive: false });
+    window.addEventListener("touchend", touchEnd, { passive: false });
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("touchstart", touchStart);
+      window.removeEventListener("touchmove", touchMove);
       window.removeEventListener("touchend", touchEnd);
     };
   }, [playJumpSound]);

@@ -1,7 +1,8 @@
 {
   "games": [
     { "id": "Runner", "title": "Runner", "description": "Match the promise to the person who made it.", "imageAsset": "/game-assets/runner.png", "tone": "orange", "route": "/games/run-cand-run" },
-    { "id": "Subway Surf", "title": "Subway Surf", "description": "Switch lanes, dodge trains, and collect coins.", "imageAsset": "/game-assets/runner.png", "tone": "blue", "route": "/games/subway-surf" }
+    { "id": "Subway Surf", "title": "Subway Surf", "description": "Switch lanes, dodge trains, and collect coins.", "imageAsset": "/game-assets/runner.png", "tone": "blue", "route": "/games/subway-surf" },
+    { "id": "Match the Candidate", "title": "Match the Candidate", "description": "Match each candidate banner to the correct name.", "imageAsset": "/game-assets/runner.png", "tone": "purple", "route": "/games/match-the-candidate" }
   ],
   "characters": [
     { "slug": "decoder", "name": "Munas MK", "description": "Chairman", "tone": "orange", "portraitAsset": "/characters/decoder/portrait.png", "gameAsset": "/characters/decoder/game.png" },
